@@ -1,0 +1,34 @@
+#! /usr/bin/env ruby
+
+require "clear_skies"
+require "rack/handler/puma"
+require "optparse"
+
+options = {}
+OptionParser.new do |parser|
+  parser.banner = "Usage: clear_skies [options] [--] metrics_file [metrics_file ...]"
+  parser.on("-p", "--port PORT",
+            "Port to listen on") do |port|
+    options[:Port] = port
+  end
+  parser.on("-b", "--bind host",
+            "Host/ip to listen on") do |host|
+    options[:Host] = host
+  end
+  parser.on("-t", "--threads MIN:MAX",
+            "min:max threads to use (default 0:16)") do |threads|
+    options[:Threads] = threads
+  end
+  parser.on("-e", "--environment env",
+            "The environment to run the Rack app on (default development)") do |env|
+    options[:environment] = env
+  end
+end.parse!
+
+ARGV.each do |config|
+  puts "Loading: '#{config}'"
+  load config
+end
+
+
+Rack::Handler::Puma.run ClearSkies::App, options
