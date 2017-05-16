@@ -16,7 +16,9 @@ module ClearSkies
       @namespace = namespace
       @metric_name = metric_name
       @dimensions = dimensions
-      @statistics = statistics
+      @statistics = statistics.select { |stat| ["SampleCount", "Average", "Sum", "Minimum", "Maximum"].include?(stat.to_s) }
+      @extended_statistics = statistics - @statistics
+
       @block = block
     end
 
@@ -25,11 +27,11 @@ module ClearSkies
     end
 
     def aws_metrics
-      @metrics = Aws::CloudWatch::Resource.new(client: Gauge.cloudwatch_client).metrics(
+       Aws::CloudWatch::Resource.new(client: Gauge.cloudwatch_client).metrics(
           namespace: @namespace,
           metric_name: @metric_name,
           dimensions: @dimensions.map {|dimension| {name: dimension} }
-      )
+      ).select { |metrics| metrics.dimensions.count == @dimensions.count }
     end
 
     def labels_from_metric(metric)
@@ -50,12 +52,17 @@ module ClearSkies
             end_time: Time.now.advance(minutes: -5),
             period: 1,
             statistics: @statistics,
+            extended_statistics: @extended_statistics,
             dimensions: metric.dimensions
         )
 
         stats.datapoints.map do |datapoint|
           datapoint.to_h.select {|k, v| ![:unit, :timestamp].include?(k) }.map do |key, value|
-            GreekFire::Metric.new(name, labels.merge({statistic: key}), value)
+            if (key == :extended_statistics)
+              value.map {|e_key, e_value| GreekFire::Metric.new(name, labels.merge({statistic: e_key}), e_value)}
+            else
+              GreekFire::Metric.new(name, labels.merge({statistic: key}), value)
+            end
           end
         end
 
