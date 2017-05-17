@@ -43,14 +43,30 @@ end
 
 If you pass a block, it will be called for each dimension retrieved.  The block will be passed a hash of all computed labels, and you may add more if you wish.  If the blocks value is false, that dimension will be skipped.
 
+
+### RDS Metrics
+There is a helper class for grabbing RDS metrics.  It behaves the same as ClearSkies::Gauge, except that it automatically adds the vpc_id and tags as labels.
+
 ``` ruby
-# To grab an RD
-ClearSkies::RDSGauge.register("ReadThroughput", ["DBInstanceIdentifier"], ["Average", "Minimum", "Maximum"]) do |labels|
-  labels[:environment] == "production"
-end
+# To grab an RDS metric
+ClearSkies::RDSGauge.register("ReadThroughput", ["DBInstanceIdentifier"], ["Average", "Minimum", "Maximum"])end
 ```
 
-There is a helper class for grabbing RDS metrics.  It behaves the same as ClearSkies::Gauge, except that it automatically adds the vpc_id and tags attached.
+### ELB Metrics
+There is a helper class for grabbing ELB metrics.  It behaves the same as ClearSkies::Gauge, except that it automatically adds the vpc_id and tags as labels.
+
+``` ruby
+# To grab an ELB metric
+ClearSkies::ELBGauge.register("Latency", ["LoadBalancerName"], ["Average", "p90"])
+```
+
+### ElasticBeanstalk Metrics
+There is a helper class for grabbing ElasticBeanstalk metrics.  It behaves the same as ClearSkies::Gauge, except that it automatically adds vpc_id and application_name as labels.
+
+``` ruby
+# To grab an ELB metric
+ClearSkies::ElasticBeanstalkGauge.register("InstancesOk", ["EnvironmentName"], ["Average", "Minimum", "Maximum"])
+```
 
 ## Contributing.
 
