@@ -8,4 +8,4 @@ WORKDIR /usr/src/app
 COPY . /usr/src/app
 RUN bundle install
 
-CMD ["clear_skies"]
+ENTRYPOINT ["clear_skies", "-e", "production"]
