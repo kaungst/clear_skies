@@ -1,7 +1,6 @@
 # ClearSkies
 
-
-TODO: Delete this and the text above, and describe your gem
+Programable cloudwatch metrics exporter for Prometheus
 
 ## Installation
 
