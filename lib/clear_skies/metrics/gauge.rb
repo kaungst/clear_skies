@@ -35,7 +35,7 @@ module ClearSkies
     end
 
     def labels_from_metric(metric)
-      metric.dimensions.inject({}) do |labels, dimension|
+      metric.dimensions.inject(ActiveSupport::HashWithIndifferentAccess.new) do |labels, dimension|
         labels[dimension.name.underscore] = dimension.value
         labels
       end

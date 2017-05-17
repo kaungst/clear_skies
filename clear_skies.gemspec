@@ -32,7 +32,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "puma"
   spec.add_dependency "aws-sdk"
-  spec.add_dependency "greek_fire", ">= 0.2.1"
+  spec.add_dependency "greek_fire", ">= 0.3.0"
   spec.add_dependency "awesome_print"
 
   spec.add_development_dependency "bundler", "~> 1.14"

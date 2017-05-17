@@ -30,5 +30,7 @@ ARGV.each do |config|
   load config
 end
 
+Aws::CloudWatch::Client.add_plugin(ClearSkies::RequestCounterPlugin)
+GreekFire::Counter.register("cloudwatch_requests_total") { ClearSkies::RequestCounter.count }
 
 Rack::Handler::Puma.run ClearSkies::App, options
