@@ -32,7 +32,7 @@ The SDK searches the following locations for a region:
 To run the exporter simple do:
     $ clear_skies metrics_file
 
-The metrics_file is a ruby script that registers the metrics you wish to export.
+The `metrics_file` is a ruby script that registers the metrics you wish to export.
 
 ``` ruby
 # To grab a generic cloudwatch metric use the following method:
@@ -40,12 +40,12 @@ ClearSkies::Gauge.register(namespace, metric_name,dimensions, statistics) do |la
   labels[:extra] = "label"
   labels[:instance_id] == "something specific"
 end
-
+```
 If you pass a block, it will be called for each dimension retrieved.  The block will be passed a hash of all computed labels, and you may add more if you wish.  If the blocks value is false, that dimension will be skipped.
 
 
 ### RDS Metrics
-There is a helper class for grabbing RDS metrics.  It behaves the same as ClearSkies::Gauge, except that it automatically adds the vpc_id and tags as labels.
+There is a helper class for grabbing RDS metrics.  It behaves the same as `ClearSkies::Gauge`, except that it automatically adds the `vpc_id` and tags as labels.
 
 ``` ruby
 # To grab an RDS metric
@@ -53,7 +53,7 @@ ClearSkies::RDSGauge.register("ReadThroughput", ["DBInstanceIdentifier"], ["Aver
 ```
 
 ### ELB Metrics
-There is a helper class for grabbing ELB metrics.  It behaves the same as ClearSkies::Gauge, except that it automatically adds the vpc_id and tags as labels.
+There is a helper class for grabbing ELB metrics.  It behaves the same as `ClearSkies::Gauge`, except that it automatically adds the `vpc_id` and tags as labels.
 
 ``` ruby
 # To grab an ELB metric
@@ -61,7 +61,7 @@ ClearSkies::ELBGauge.register("Latency", ["LoadBalancerName"], ["Average", "p90"
 ```
 
 ### ElasticBeanstalk Metrics
-There is a helper class for grabbing ElasticBeanstalk metrics.  It behaves the same as ClearSkies::Gauge, except that it automatically adds vpc_id and application_name as labels.
+There is a helper class for grabbing ElasticBeanstalk metrics.  It behaves the same as `ClearSkies::Gauge`, except that it automatically adds `vpc_id` and `application_name` as labels.
 
 ``` ruby
 # To grab an ELB metric
