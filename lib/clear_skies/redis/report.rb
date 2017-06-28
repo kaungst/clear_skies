@@ -4,56 +4,62 @@ module ClearSkies
     class Report
 
       def self.register(host, port, extra_labels=nil)
-        extra_labels = Hash.new unless extra_labels
-
-
-        hosts << {host: host, port: port, extra_labels: extra_labels }
+        reports << ClearSkies::Redis::Report.new(host, port, extra_labels || Hash.new)
       end
 
-      def self.hosts
-        @hosts ||= []
+      def self.reports
+        @reports ||= []
       end
 
-      def self.redis_metrics(host, port, database)
-        cache_key = "redis_stats_#{host}_#{port}_#{database}"
-        Rails.cache.fetch(cache_key, expires_in: 1.second) do
-          redis = ::Redis.new(host: host, port: port, db: database)
-          redis_info = redis.info
-          metrics = OpenStruct.new
+      attr_reader :host, :port, :extra_labels, :metrics
+      def initialize(host, port, extra_labels)
+        @host = host
+        @port = port
+        @extra_labels = extra_labels
+        GreekFire::Measure.before_metrics { refresh }
+      end
 
-          metrics.keys = redis.dbsize
-          metrics.last_save = Time.now.to_i - redis.lastsave
-          metrics.uptime = redis_info["uptime_in_seconds"].to_f
-          metrics.connected_clients =  redis_info["connected_clients"].to_i
-          metrics.blocked_clients =  redis_info["blocked_clients"].to_i
-          metrics.used_memory =  redis_info["used_memory"].to_f
-          metrics.mem_fragmentation_ratio =  redis_info["mem_fragmentation_ratio"].to_f
-          metrics.rdb_changes_since_last_save =  redis_info["rdb_changes_since_last_save"].to_f
-          metrics.rdb_last_bgsave_time_sec =  redis_info["rdb_last_bgsave_time_sec"].to_f
-          metrics.total_commands_processed =  redis_info["total_commands_processed"].to_f
-          metrics
+      def redis_metrics(database)
+        redis = ::Redis.new(host: @host, port: @port, db: database)
+        redis_info = redis.info
+        metrics = OpenStruct.new
+        metrics.host = @host
+        metrics.port = @port
+        metrics.db = database
+        metrics.keys = redis.dbsize
+        metrics.last_save = Time.now.to_i - redis.lastsave
+        metrics.uptime = redis_info["uptime_in_seconds"].to_f
+        metrics.connected_clients =  redis_info["connected_clients"].to_i
+        metrics.blocked_clients =  redis_info["blocked_clients"].to_i
+        metrics.used_memory =  redis_info["used_memory"].to_f
+        metrics.mem_fragmentation_ratio =  redis_info["mem_fragmentation_ratio"].to_f
+        metrics.rdb_changes_since_last_save =  redis_info["rdb_changes_since_last_save"].to_f
+        metrics.rdb_last_bgsave_time_sec =  redis_info["rdb_last_bgsave_time_sec"].to_f
+        metrics.total_commands_processed =  redis_info["total_commands_processed"].to_f
+        metrics
+      end
+
+      def refresh
+        databases = ::Redis.new(:host => @host, :port => @port).info.keys.map {|k| k =~ /^db/ && k.sub("db", "")}.compact
+        @metrics = databases.map do |database|
+          redis_metrics(database)
         end
       end
-    end
 
-    private
+    end
 
     class Measure < GreekFire::Measure
       def initialize(name, &block)
-        super(name)
-
-        @block = block
+        super(name) do |label|
+          block.call(label.delete(:metric))
+        end
       end
 
-      def metrics
-        ClearSkies::Redis::Report.hosts.map do |doc|
-          host = doc[:host]
-          port = doc[:port]
-          databases = ::Redis.new(:host => host, :port => port).info.keys.map {|k| k =~ /^db/ && k.sub("db", "")}.compact
 
-          databases.map do |database|
-            value = @block.call(ClearSkies::Redis::Report.redis_metrics(host, port, database))
-            GreekFire::Metric.new(name, {host: host, port: port, db: database}.merge(doc[:extra_labels]), value)
+      def labels
+        ClearSkies::Redis::Report.reports.map do |report|
+          report.metrics.map do |metric|
+            report.extra_labels.merge({host: report.host, port: report.port, db: metric.db, metric: metric })
           end
         end.flatten
       end
