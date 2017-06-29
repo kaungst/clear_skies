@@ -1,4 +1,5 @@
 require 'redis'
+
 module ClearSkies
   module Redis
     class Report
@@ -11,21 +12,53 @@ module ClearSkies
         @reports ||= []
       end
 
-      attr_reader :host, :port, :extra_labels, :metrics
+      attr_reader :host, :port, :extra_labels
       def initialize(host, port, extra_labels)
         @host = host
         @port = port
-        @extra_labels = extra_labels
-        GreekFire::Measure.before_metrics { refresh }
+        @extra_labels = {host: host, port: port}.merge extra_labels
       end
 
-      def redis_metrics(database)
-        redis = ::Redis.new(host: @host, port: @port, db: database)
+      def self.metric_names
+        [
+            "keys",
+            "last_save",
+            "uptime",
+            "connected_clients",
+            "blocked_clients",
+            "used_memory",
+            "mem_fragmentation_ratio",
+            "rdb_changes_since_last_save",
+            "rdb_last_bgsave_time_sec",
+            "total_commands_processed"
+        ]
+      end
+
+      def dimensions
+        ::Redis.new(:host => @host, :port => @port).info.keys.map {|k| k =~ /^db/ && k.sub("db", "")}.compact
+      end
+
+      def report_dimensions
+        dimensions.map do |dimension|
+          ReportDimension.new(self, dimension)
+        end
+      end
+
+    end
+
+    class ReportDimension
+      attr_reader :report, :dimension
+
+      def initialize(report, dimension)
+        @report = report
+        @dimension = dimension
+      end
+
+      def metrics
+        redis = ::Redis.new(host: report.host, port: report.port, db: @dimension)
         redis_info = redis.info
+
         metrics = OpenStruct.new
-        metrics.host = @host
-        metrics.port = @port
-        metrics.db = database
         metrics.keys = redis.dbsize
         metrics.last_save = Time.now.to_i - redis.lastsave
         metrics.uptime = redis_info["uptime_in_seconds"].to_f
@@ -34,34 +67,25 @@ module ClearSkies
         metrics.used_memory =  redis_info["used_memory"].to_f
         metrics.mem_fragmentation_ratio =  redis_info["mem_fragmentation_ratio"].to_f
         metrics.rdb_changes_since_last_save =  redis_info["rdb_changes_since_last_save"].to_f
-        metrics.rdb_last_bgsave_time_sec =  redis_info["rdb_last_bgsave_time_sec"].to_f
+        metrics.rdb_last_bgsave_time_szec =  redis_info["rdb_last_bgsave_time_sec"].to_f
         metrics.total_commands_processed =  redis_info["total_commands_processed"].to_f
         metrics
       end
-
-      def refresh
-        databases = ::Redis.new(:host => @host, :port => @port).info.keys.map {|k| k =~ /^db/ && k.sub("db", "")}.compact
-        @metrics = databases.map do |database|
-          redis_metrics(database)
-        end
-      end
-
     end
 
     class Measure < GreekFire::Measure
-      def initialize(name, &block)
-        super(name) do |label|
-          block.call(label.delete(:metric))
+      def initialize(report_dimensions, prefix, name)
+        @report_dimensions = report_dimensions
+        super("#{prefix}_#{name}") do |label|
+          label.delete(:metric).metrics.to_h[name.to_sym]
         end
       end
 
 
       def labels
-        ClearSkies::Redis::Report.reports.map do |report|
-          report.metrics.map do |metric|
-            report.extra_labels.merge({host: report.host, port: report.port, db: metric.db, metric: metric })
-          end
-        end.flatten
+        @report_dimensions.map do |report_dimension|
+          report_dimension.report.extra_labels.merge({metric: report_dimension })
+        end
       end
     end
 
@@ -78,13 +102,11 @@ module ClearSkies
   end
 end
 
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_keys")                        { |metrics| metrics.keys })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_last_save")                   { |metrics| metrics.last_save })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_uptime")                      { |metrics| metrics.uptime })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_connected_clients")           { |metrics| metrics.connected_clients })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_blocked_clients")             { |metrics| metrics.blocked_clients })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_used_memory")                 { |metrics| metrics.used_memory })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_mem_fragmentation_ratio")     { |metrics| metrics.mem_fragmentation_ratio })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_rdb_changes_since_last_save") { |metrics| metrics.rdb_changes_since_last_save })
-GreekFire::Metric.register(ClearSkies::Redis::Gauge.new("redis_rdb_last_bgsave_time_sec")    { |metrics| metrics.rdb_last_bgsave_time_sec })
-GreekFire::Metric.register(ClearSkies::Redis::Counter.new("redis_total_commands_processed")  { |metrics| metrics.total_commands_processed })
+GreekFire::Metric.register do
+  report_dimensions = ClearSkies::Redis::Report.reports.map(&:report_dimensions).flatten
+
+  ClearSkies::Redis::Report.metric_names.map do |metric_name|
+    ClearSkies::Redis::Gauge.new(report_dimensions,  "redis", metric_name)
+  end
+end
+
