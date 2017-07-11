@@ -69,8 +69,8 @@ module ClearSkies
   end
 end
 
-GreekFire::Metric.register(ClearSkies::Elasticsearch::Gauge.new("elasticsearch_docs_count")                     { |metrics| metrics.docs_count })
-GreekFire::Metric.register(ClearSkies::Elasticsearch::Gauge.new("elasticsearch_docs_deleted")                   { |metrics| metrics.docs_deleted })
+# GreekFire::Metric.register(ClearSkies::Elasticsearch::Gauge.new("elasticsearch_docs_count")                     { |metrics| metrics.docs_count })
+# GreekFire::Metric.register(ClearSkies::Elasticsearch::Gauge.new("elasticsearch_docs_deleted")                   { |metrics| metrics.docs_deleted })
 
 
 #For a <DIM>, grab N metrics.

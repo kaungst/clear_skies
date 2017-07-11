@@ -8,6 +8,7 @@ require "aws-sdk"
 
 require "clear_skies/app"
 require "clear_skies/cloud_watch/gauge"
+require "clear_skies/cloud_watch/billing"
 require "clear_skies/cloud_watch/rds_gauge"
 require "clear_skies/cloud_watch/elb_gauge"
 require "clear_skies/cloud_watch/elastic_beanstalk_gauge"

@@ -19,9 +19,11 @@ module ClearSkies
         if labels.has_key?( "db_instance_identifier") && !(Rails.cache.fetch("#{labels["db_instance_identifier"]}_skip"))
           db = Aws::RDS::DBInstance.new(labels["db_instance_identifier"])
 
-          labels["vpc_id"] = Rails.cache.fetch("#{labels["db_instance_identifier"]}_vpc_id_") do
-            db.db_subnet_group.vpc_id
+          vpc_id = Rails.cache.fetch("#{labels["db_instance_identifier"]}_vpc_id_") do
+            db.db_subnet_group&.vpc_id
           end
+
+          labels["vpc_id"] = vpc_id if vpc_id.present?
 
           labels.merge!(Rails.cache.fetch("#{labels["db_instance_identifier"]}_tags_", expires_in: 1.hour, race_condition_ttl: 60.seconds) do
             tags(db)

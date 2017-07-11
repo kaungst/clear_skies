@@ -2,6 +2,7 @@ require 'redis'
 
 module ClearSkies
   module Redis
+
     class Report
 
       def self.register(host, port, extra_labels=nil)
@@ -44,6 +45,9 @@ module ClearSkies
         end
       end
 
+      def items
+        report_dimensions.map
+      end
     end
 
     class ReportDimension
@@ -104,6 +108,7 @@ end
 
 GreekFire::Metric.register do
   report_dimensions = ClearSkies::Redis::Report.reports.map(&:report_dimensions).flatten
+  next [] unless report_dimensions.length > 0
 
   ClearSkies::Redis::Report.metric_names.map do |metric_name|
     ClearSkies::Redis::Gauge.new(report_dimensions,  "redis", metric_name)

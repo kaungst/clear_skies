@@ -8,13 +8,14 @@ module ClearSkies
         GreekFire::Metric.register(self.new(*args, &block))
       end
 
-      def initialize(namespace, metric_name, dimensions, statistics, description:nil, &block)
+      def initialize(namespace, metric_name, dimensions, statistics, description:nil, aws_parameters:nil, &block)
         super("#{namespace.underscore.gsub("/", "_")}_#{metric_name.underscore}", description: description)
         @namespace = namespace
         @metric_name = metric_name
         @dimensions = dimensions
         @statistics = statistics.select { |stat| ["SampleCount", "Average", "Sum", "Minimum", "Maximum"].include?(stat.to_s) }
         @extended_statistics = statistics - @statistics
+        @aws_parameters = aws_parameters || { }
 
         @block = block
       end
@@ -24,7 +25,7 @@ module ClearSkies
       end
 
       def aws_metrics
-         Aws::CloudWatch::Resource.new(client: Gauge.cloudwatch_client).metrics(
+         Aws::CloudWatch::Resource.new(client: self.class.cloudwatch_client).metrics(
             namespace: @namespace,
             metric_name: @metric_name,
             dimensions: @dimensions.map {|dimension| {name: dimension} }
@@ -45,9 +46,9 @@ module ClearSkies
           next unless @block.call(labels) if @block
 
           stats = metric.get_statistics(
-              start_time: Time.now.advance(minutes: -6),
-              end_time: Time.now.advance(minutes: -5),
-              period: 1,
+              start_time: Time.now.advance(@aws_parameters[:start_time] || {minutes: -6}),
+              end_time: Time.now.advance(@aws_parameters[:end_time] || {minutes: -5}),
+              period: @aws_parameters[:period] || 1,
               statistics: @statistics,
               extended_statistics: @extended_statistics,
               dimensions: metric.dimensions
