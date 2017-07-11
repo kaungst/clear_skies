@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    clear_skies (0.2.1)
+    clear_skies (0.3.0)
       awesome_print
       aws-sdk
       elasticsearch
