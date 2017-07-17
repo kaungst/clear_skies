@@ -3,25 +3,27 @@ module ClearSkies
     class ReservationUtilization < GreekFire::MeasureSet
       def items
         client = Aws::EC2::Client.new()
-        reservations = client.describe_reserved_instances(filters: [{name: "state", values: ["active"]}]).reserved_instances.map { |x| ReservationMatcher.new(x) }
+        reservations = client.describe_reserved_instances.reserved_instances
+        active_reservations = reservations.map { |x| ReservationMatcher.new(x) if x.state == "active" }.compact
+        current_reservations = reservations.map { |x| ReservationMatcher.new(x) if x.start < Time.now && x.start + x.duration > Time.now && x.fixed_price > 0}.compact
 
         instance_counts = Hash.new { 0 }
-
 
         instance_spawns = client.describe_instances(filters: [{name: "instance-state-name", values: ["running"]}])
 
         instance_spawns.reservations.each do |spawn|
           spawn.instances.each do |instance|
-            reservations.find { |reservation| reservation.match(instance) }
+            active_reservations.find { |reservation| reservation.match(instance) }
 
             instance_counts[{instance_type: instance.instance_type, availability_zone: instance.placement.availability_zone, tenancy: instance.placement.tenancy}] += 1
           end
         end
 
         [
-            ReservationExpirationGauge.new(reservations),
-            ReservationPurchasedGauge.new(reservations),
-            ReservationUsageGauge.new(reservations),
+            ReservationExpirationGauge.new(active_reservations),
+            ReservationPurchasedGauge.new(active_reservations),
+            ReservationDailyCostGauge.new(current_reservations),
+            ReservationUsageGauge.new(active_reservations),
             InstancesGauge.new(instance_counts)
         ]
       end
@@ -39,6 +41,10 @@ module ClearSkies
 
       def expires_in
         @reservation.end - Time.now
+      end
+
+      def daily_cost
+        (reservation.fixed_price * instance_count) / (reservation.duration / 1.day)
       end
 
       def match(instance)
@@ -81,6 +87,22 @@ module ClearSkies
       def initialize(reservations)
         super("aws_ec2_reservation_purchases", description: "Number of instance reservations purchased") do |labels|
           labels.delete(:reservation).instance_count
+        end
+
+        @reservations = reservations
+      end
+
+      def labels
+        @reservations.map do |reservation|
+          reservation.labels.merge(reservation: reservation)
+        end
+      end
+    end
+
+    class ReservationDailyCostGauge < GreekFire::Gauge
+      def initialize(reservations)
+        super("aws_ec2_reservation_amortized_daily_price", description: "Amortized daily cost of reservation") do |labels|
+          labels.delete(:reservation).daily_cost
         end
 
         @reservations = reservations
