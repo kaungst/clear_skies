@@ -20,21 +20,6 @@ module ClearSkies
         @extra_labels = {host: host, port: port}.merge extra_labels
       end
 
-      def self.metric_names
-        [
-            "keys",
-            "last_save",
-            "uptime",
-            "connected_clients",
-            "blocked_clients",
-            "used_memory",
-            "mem_fragmentation_ratio",
-            "rdb_changes_since_last_save",
-            "rdb_last_bgsave_time_sec",
-            "total_commands_processed"
-        ]
-      end
-
       def dimensions
         ::Redis.new(:host => @host, :port => @port).info.keys.map {|k| k =~ /^db/ && k.sub("db", "")}.compact
       end
@@ -47,6 +32,28 @@ module ClearSkies
 
       def items
         report_dimensions.map
+      end
+    end
+
+    class MeasureSet < GreekFire::MeasureSet
+      def items
+        report_dimensions = ClearSkies::Redis::Report.reports.map(&:report_dimensions).flatten
+        return [] unless report_dimensions.length > 0
+
+        [
+            "keys",
+            "last_save",
+            "uptime",
+            "connected_clients",
+            "blocked_clients",
+            "used_memory",
+            "mem_fragmentation_ratio",
+            "rdb_changes_since_last_save",
+            "rdb_last_bgsave_time_sec",
+            "total_commands_processed"
+        ].map do |metric_name|
+          ClearSkies::Redis::Gauge.new(report_dimensions,  "redis", metric_name)
+        end
       end
     end
 
@@ -106,12 +113,5 @@ module ClearSkies
   end
 end
 
-GreekFire::Metric.register do
-  report_dimensions = ClearSkies::Redis::Report.reports.map(&:report_dimensions).flatten
-  next [] unless report_dimensions.length > 0
-
-  ClearSkies::Redis::Report.metric_names.map do |metric_name|
-    ClearSkies::Redis::Gauge.new(report_dimensions,  "redis", metric_name)
-  end
-end
+GreekFire::Metric.register ClearSkies::Redis::MeasureSet.new
 

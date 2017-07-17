@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    clear_skies (0.3.0)
+    clear_skies (0.4.0)
       awesome_print
       aws-sdk
       elasticsearch
@@ -51,13 +51,13 @@ GEM
       tzinfo (~> 1.1)
     arel (8.0.0)
     awesome_print (1.8.0)
-    aws-sdk (2.10.4)
-      aws-sdk-resources (= 2.10.4)
-    aws-sdk-core (2.10.4)
+    aws-sdk (2.10.10)
+      aws-sdk-resources (= 2.10.10)
+    aws-sdk-core (2.10.10)
       aws-sigv4 (~> 1.0)
       jmespath (~> 1.0)
-    aws-sdk-resources (2.10.4)
-      aws-sdk-core (= 2.10.4)
+    aws-sdk-resources (2.10.10)
+      aws-sdk-core (= 2.10.10)
     aws-sigv4 (1.0.0)
     builder (3.2.3)
     concurrent-ruby (1.0.5)
@@ -146,4 +146,4 @@ DEPENDENCIES
   rake (~> 10.0)
 
 BUNDLED WITH
-   1.14.6
+   1.15.1
