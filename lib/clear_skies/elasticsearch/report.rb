@@ -1,4 +1,5 @@
 require 'elasticsearch'
+require 'uri'
 
 module ClearSkies
   module Elasticsearch
@@ -12,65 +13,107 @@ module ClearSkies
         @reports ||= []
       end
 
-      attr_reader :url, :extra_labels, :metrics
+
+      def self.flatten_hash(hash, prefix="elasticsearch")
+        ret = HashWithIndifferentAccess.new
+        hash.each do |k, value|
+          name = "#{prefix}_#{k}"
+          if value.is_a?(Hash)
+            ret.merge!(flatten_hash(value, name))
+          elsif(value.is_a?(Numeric))
+            ret[name] = value
+          end
+        end
+        return ret
+      end
+
+      attr_reader :url, :extra_labels
       def initialize(url, extra_labels)
         @url = url
-        @extra_labels = extra_labels
-        GreekFire::Measure.before_metrics { refresh }
+
+        @extra_labels = {host: URI(url).host}.merge extra_labels
       end
 
-      def elasticsearch_metrics(client, index)
-        metrics = OpenStruct.new
-        metrics.index = index
-        stats = client.indices.stats["indices"][index]["total"]
-        metrics.docs_count = stats["docs"]["count"]
-        metrics.docs_deleted = stats["docs"]["deleted"]
-        metrics
+      def metrics
+        client = ::Elasticsearch::Client.new(hosts: url)
+        stats = client.cluster.stats
+        ClearSkies::Elasticsearch::Report.flatten_hash(stats)
       end
 
-      def refresh
+      def dimensions
         client = ::Elasticsearch::Client.new(hosts: @url)
-        aliases = client.indices.get_aliases
+        client.indices.get_aliases
+      end
 
-        @metrics = aliases.map do |index, _aliases|
-          elasticsearch_metrics(client, index)
+      def report_dimensions
+        dimensions.map do |dimension|
+          ReportDimension.new(self, dimension)
         end
       end
-
     end
 
-    class Measure < GreekFire::Measure
-      def initialize(name, &block)
-        super(name) do |label|
-          block.call(label.delete(:metric))
+    class MeasureSet < GreekFire::MeasureSet
+      def items
+        metrics = []
+
+        labels = ClearSkies::Elasticsearch::Report.reports.map do | report|
+          GreekFire::SmartLabel.new(report.metrics, report.extra_labels)
         end
-      end
 
+        metric_names = labels.map {|i| i.value.keys}.flatten.uniq
 
-      def labels
-        ClearSkies::Elasticsearch::Report.reports.map do |report|
-          report.metrics.map do |metric|
-            report.extra_labels.merge({index: metric.index, metric: metric })
+        metric_names.each do |metric|
+          metrics << GreekFire::Gauge.new(metric, labels: labels) do |label|
+            label.value[metric]
+          end
+        end
+
+        labels = ClearSkies::Elasticsearch::Report.reports.map do | report|
+          report.report_dimensions.map do |report_dimension|
+            GreekFire::SmartLabel.new(report_dimension.metrics, report_dimension.extra_labels)
           end
         end.flatten
+
+        metric_names = labels.map {|i| i.value.keys}.flatten.uniq
+
+        metric_names.each do |metric|
+          metrics << GreekFire::Gauge.new(metric, labels: labels) do |label|
+            label.value[metric]
+          end
+        end
+        metrics
       end
     end
 
-    class Gauge < ClearSkies::Elasticsearch::Measure
-      def to_partial_path
-        GreekFire::Gauge._to_partial_path
+    class ReportDimension
+      attr_reader :report, :dimension, :extra_labels
+
+      def initialize(report, dimension)
+        @report = report
+        @dimension = dimension
+        @extra_labels = { index: index_alias(dimension) }
       end
-    end
-    class Counter < ClearSkies::Elasticsearch::Measure
-      def to_partial_path
-        GreekFire::Counter._to_partial_path
+
+      def index_alias(dimension)
+        @dimension[1]["aliases"].keys&.first || @dimension[0]
+      end
+
+      def index_name
+        @dimension[0]
+      end
+
+      def extra_labels
+        @report.extra_labels.merge(@extra_labels)
+      end
+
+
+      def metrics
+        client = ::Elasticsearch::Client.new(hosts: report.url)
+        stats = client.indices.stats["indices"][index_name]["total"]
+        ClearSkies::Elasticsearch::Report.flatten_hash(stats)
       end
     end
   end
 end
 
-# GreekFire::Metric.register(ClearSkies::Elasticsearch::Gauge.new("elasticsearch_docs_count")                     { |metrics| metrics.docs_count })
-# GreekFire::Metric.register(ClearSkies::Elasticsearch::Gauge.new("elasticsearch_docs_deleted")                   { |metrics| metrics.docs_deleted })
-
-
-#For a <DIM>, grab N metrics.
+GreekFire::Metric.register ClearSkies::Elasticsearch::MeasureSet.new

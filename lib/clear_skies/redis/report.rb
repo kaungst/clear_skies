@@ -29,17 +29,13 @@ module ClearSkies
           ReportDimension.new(self, dimension)
         end
       end
-
-      def items
-        report_dimensions.map
-      end
     end
 
     class MeasureSet < GreekFire::MeasureSet
       def items
         labels = ClearSkies::Redis::Report.reports.map do | report|
           report.report_dimensions.map do |report_dimension|
-            GreekFire::SmartLabel.new(report_dimension.metrics, report_dimension.report.extra_labels)
+            GreekFire::SmartLabel.new(report_dimension.metrics, report_dimension.extra_labels)
           end
         end.flatten
 
@@ -70,6 +66,11 @@ module ClearSkies
       def initialize(report, dimension)
         @report = report
         @dimension = dimension
+        @extra_labels = { db: dimension }
+      end
+
+      def extra_labels
+        @report.extra_labels.merge(@extra_labels)
       end
 
       def metrics
