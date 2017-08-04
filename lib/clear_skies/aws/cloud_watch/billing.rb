@@ -10,6 +10,10 @@ module ClearSkies
         def self.cloudwatch_client
           @client ||= Aws::CloudWatch::Client.new(region: "us-east-1")
         end
+
+        def metrics
+          Rails.cache.fetch(self.to_s, expires_in: 1.hour) { super }
+        end
       end
     end
   end
