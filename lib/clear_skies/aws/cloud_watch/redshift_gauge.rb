@@ -2,8 +2,8 @@ module ClearSkies
   module AWS
     module CloudWatch
       class RedshiftGauge < ClearSkies::AWS::CloudWatch::Gauge
-        def initialize(metric_name, dimension, statistics, description: nil, &block)
-          super("AWS/Redshift", metric_name, dimension, statistics, description: description, &block)
+        def initialize(metric_name, dimension, statistics, description: nil, aws_parameters:nil, &block)
+          super("AWS/Redshift", metric_name, dimension, statistics, description: description, aws_parameters: aws_parameters, &block)
         end
 
         def extra_labels(cluster_id)

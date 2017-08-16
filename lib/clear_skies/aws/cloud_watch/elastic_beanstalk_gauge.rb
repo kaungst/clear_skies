@@ -5,8 +5,8 @@ module ClearSkies
         def self.beanstalk_client
           @beanstalk_client ||= ::Aws::ElasticBeanstalk::Client.new
         end
-        def initialize(metric_name, dimension, statistics, description: nil, &block)
-          super("AWS/ElasticBeanstalk", metric_name, dimension, statistics, description: description, &block)
+        def initialize(metric_name, dimension, statistics, description: nil, aws_parameters:nil, &block)
+          super("AWS/ElasticBeanstalk", metric_name, dimension, statistics, description: description, aws_parameters: aws_parameters, &block)
         end
 
         def application_name(environment_name)

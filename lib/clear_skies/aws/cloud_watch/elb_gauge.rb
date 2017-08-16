@@ -6,8 +6,8 @@ module ClearSkies
         def self.elb_client
           @elb_client ||= Aws::ElasticLoadBalancing::Client.new
         end
-        def initialize(metric_name, dimension, statistics, description: nil, &block)
-          super("AWS/ELB", metric_name, dimension, statistics, description: description, &block)
+        def initialize(metric_name, dimension, statistics, description: nil, aws_parameters:nil, &block)
+          super("AWS/ELB", metric_name, dimension, statistics, description: description, aws_parameters: aws_parameters, &block)
         end
 
         def tags(load_balancer_name)

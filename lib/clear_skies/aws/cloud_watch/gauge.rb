@@ -46,10 +46,14 @@ module ClearSkies
 
             next unless @block.call(labels) if @block
 
+            start_time = Time.now.advance(@aws_parameters[:start_time] || {minutes: -6})
+            end_time   = Time.now.advance(@aws_parameters[:end_time]   || {minutes: -5})
+            period     = @aws_parameters[:period] || end_time - start_time
+
             stats = metric.get_statistics(
-                start_time: Time.now.advance(@aws_parameters[:start_time] || {minutes: -6}),
-                end_time: Time.now.advance(@aws_parameters[:end_time] || {minutes: -5}),
-                period: @aws_parameters[:period] || 1,
+                start_time: start_time,
+                end_time: end_time,
+                period: period,
                 statistics: @statistics,
                 extended_statistics: @extended_statistics,
                 dimensions: metric.dimensions
