@@ -8,8 +8,6 @@ Install it yourself as:
 
     $ gem install clear_skies
 
-You can also use docker
-
 ## Configuration
 (from https://github.com/aws/aws-sdk-ruby)
 You need to configure `:credentials` and a `:region` to make API calls. It is recommended that you provide these via your environment. This makes it easier to rotate credentials and it keeps your secrets out of source control.
