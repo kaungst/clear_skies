@@ -2,7 +2,7 @@
 module ClearSkies
   module AWS
     module CloudWatch
-      class Gauge < GreekFire::Gauge
+      class Measure < GreekFire::Measure
         include ActiveModel::Conversion
 
         def self.register(*args, &block)
@@ -72,6 +72,18 @@ module ClearSkies
           end.flatten.compact
         end
       end
+
+      class Gauge < Measure
+        def to_partial_path
+          GreekFire::Gauge._to_partial_path
+        end
+      end
+      class Counter < Measure
+        def to_partial_path
+          GreekFire::Counter._to_partial_path
+        end
+      end
+
     end
   end
 end
