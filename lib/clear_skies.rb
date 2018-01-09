@@ -18,5 +18,5 @@ require "clear_skies/aws/cloud_watch/request_counter"
 require "clear_skies/bugsnag/project_exception_counter"
 require "clear_skies/redis/report"
 require "clear_skies/elasticsearch/report"
-
 require "clear_skies/aws/rds_reservation_utilization"
+require "clear_skies/jenkins/metrics"
