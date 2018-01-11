@@ -1,4 +1,5 @@
 require 'net/https'
+require 'cgi'
 
 module ClearSkies
   module Jenkins
@@ -11,7 +12,19 @@ module ClearSkies
 
       def items
         labels = JSON.parse(Net::HTTP.get(URI("https://#{@hostname}/view/#{@view_name}/api/json")))["jobs"].map do |job|
-          GreekFire::SmartLabel.new(JSON.parse(Net::HTTP.get(URI(job["url"] + "/lastCompletedBuild/api/json"))), {job_name: job["name"], jenkins_host: @hostname})
+          name = begin
+                   if job["name"] == "master" && job["_class"] == "org.jenkinsci.plugins.workflow.job.WorkflowJob"
+                     parts = job["url"].split('/')
+                     project_name = CGI.unescape parts[-3]
+                     branch_name = parts[-1]
+                     "#{project_name}/#{branch_name}"
+                   else
+                     job["name"]
+                   end
+                 rescue
+                   job["name"]
+                 end
+          GreekFire::SmartLabel.new(JSON.parse(Net::HTTP.get(URI(job["url"] + "/lastCompletedBuild/api/json"))), {job_name: name, jenkins_host: @hostname})
         end
 
 
