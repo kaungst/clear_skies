@@ -1,5 +1,4 @@
 require 'uri'
-require 'pry'
 require 'net/https'
 require 'json'
 
