@@ -5,27 +5,29 @@ module ClearSkies
   module Jenkins
 
     class Metrics < GreekFire::MeasureSet
-      def initialize(hostname, view_name)
-        @hostname = hostname
+      def initialize(hostnames, view_name)
+        @hostnames = Array(hostnames)
         @view_name = view_name
       end
 
       def items
-        labels = JSON.parse(Net::HTTP.get(URI("https://#{@hostname}/view/#{@view_name}/api/json")))["jobs"].map do |job|
-          name = begin
-                   if job["name"] == "master" && job["_class"] == "org.jenkinsci.plugins.workflow.job.WorkflowJob"
-                     parts = job["url"].split('/')
-                     project_name = CGI.unescape parts[-3]
-                     branch_name = parts[-1]
-                     "#{project_name}/#{branch_name}"
-                   else
+        labels = @hostnames.map do |hostname|
+          JSON.parse(Net::HTTP.get(URI("https://#{hostname}/view/#{@view_name}/api/json")))["jobs"].map do |job|
+            name = begin
+                     if job["name"] == "master" && job["_class"] == "org.jenkinsci.plugins.workflow.job.WorkflowJob"
+                       parts = job["url"].split('/')
+                       project_name = CGI.unescape parts[-3]
+                       branch_name = parts[-1]
+                       "#{project_name}/#{branch_name}"
+                     else
+                       job["name"]
+                     end
+                   rescue
                      job["name"]
                    end
-                 rescue
-                   job["name"]
-                 end
-          GreekFire::SmartLabel.new(JSON.parse(Net::HTTP.get(URI(job["url"] + "/lastCompletedBuild/api/json"))), {job_name: name, jenkins_host: @hostname})
-        end
+            GreekFire::SmartLabel.new(JSON.parse(Net::HTTP.get(URI(job["url"] + "/lastCompletedBuild/api/json"))), {job_name: name, jenkins_host: hostname})
+          end
+        end.flatten
 
 
         [
