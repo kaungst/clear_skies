@@ -27,6 +27,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "elasticsearch"
   spec.add_dependency "greek_fire", ">= 0.3.0"
   spec.add_dependency "bugsnag-api", ">= 2.0.0"
+  spec.add_dependency "tracker_api", "~> 0.2.11"
 
   spec.add_dependency "awesome_print"
 
