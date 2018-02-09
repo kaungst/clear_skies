@@ -5,16 +5,33 @@ module ClearSkies
     class ProjectExceptionCounter < GreekFire::Counter
       def initialize(org_id)
         @org_id = org_id
-        super("bugsnag_exceptions") { |label| make_request_for_label(label) }
+        super("bugsnag_exceptions") { |labels| make_request_for_labels(labels) }
       end
 
-      def make_request_for_label(label)
-        filters = {
-          "error.status" => [{ "type" => "eq", "value" => "open" }],
-          "app.release_stage" => [{ "type" => "eq", "value" => label[:release_stage] }]
+      def make_request_for_labels(labels)
+        options = {:query => 
+          {"resolution" => "12h",
+           "filters" =>
+           {
+            "event.since" => 
+            [
+              {
+                "type" => "eq", 
+                "value" => Time.now.in_time_zone("UTC").at_beginning_of_day.iso8601
+              }
+            ],
+            "app.release_stage" =>
+            [
+              {
+                "type" => "eq",
+                "value" => labels[:release_stage]
+              }
+            ]
+            }
+          }
         }
-        project = label.value
-        ::Bugsnag::Api.errors(project["id"], nil, filters: filters).size
+        project = labels.value
+        ::Bugsnag::Api.get("projects/#{project["id"]}/trend", options).map { |trend| trend[:events_count]}.sum
       end
 
       def labels
