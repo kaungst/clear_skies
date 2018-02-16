@@ -31,6 +31,9 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "awesome_print"
 
+  # Provide the option of using apohypaton to fetch secrets from a metrics file.
+  spec.add_dependency "apohypaton"
+
   spec.add_development_dependency "bundler", "~> 1.14"
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "docker-api"
