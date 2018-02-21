@@ -13,18 +13,31 @@ module ClearSkies
 
         labels = project_ids.map do |project_id|
           project = client.project(project_id)
-          delivered_story_count = project.stories(with_state: :delivered).count
 
-          GreekFire::SmartLabel.new(delivered_story_count, { project_id: project_id })
+          delivered_story_count = project.stories(with_state: :delivered).count
+          in_flight_story_count = project.stories(with_state: :started).count
+
+          GreekFire::SmartLabel.new(
+            {
+              "delivered_story_count" => delivered_story_count,
+              "in_flight_story_count" => in_flight_story_count
+            },
+            { project_id: project_id }
+          )
         end
 
-        [GreekFire::Gauge.new("delivered_story_count", labels: labels) do |label|
-          label.value
-        end]
+        %w(
+          delivered_story_count
+          in_flight_story_count
+        ).map { |name| self.class.generate_gauge(name, labels) }
       end
 
       private
       attr_accessor :project_ids, :api_token
+
+      def self.generate_gauge(name, labels)
+        GreekFire::Gauge.new(name, labels: labels) { |label| label.value[name] }
+      end
     end
   end
 end
